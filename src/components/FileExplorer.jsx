@@ -37,39 +37,60 @@ function FileExplorer({ initialData }) {
 
     const newData = { ...data }; // Create a deep copy of the data
 
-    // Recursive function to rename items
+    // Recursive function to rename items while preserving order
     const renameItem = (obj) => {
+      // Create a new object to maintain order
+      const updatedObj = {};
+
       Object.keys(obj).forEach((key) => {
         const item = obj[key];
+        let currentKey = key;
+        let currentItem = item;
 
         // Rename at root level
         if (key === oldName) {
-          delete obj[key];
-          obj[newName] = { ...item, name: newName };
-          return;
+          currentKey = newName;
+          currentItem = { ...item, name: newName };
         }
 
-        // Handle nested folders
-        if (item.type === "folder" && item.children) {
-          // Check and rename children
-          const childIndex = item.children.findIndex(
-            (child) => child.name === oldName
+        // Handle nested folders and their children
+        if (currentItem.type === "folder" && currentItem.children) {
+          // Check and rename children while preserving their order
+          currentItem.children = currentItem.children.map((child) =>
+            child.name === oldName ? { ...child, name: newName } : child
           );
-          if (childIndex !== -1) {
-            item.children[childIndex] = {
-              ...item.children[childIndex],
-              name: newName,
-            };
-          }
+        }
 
-          // Recurse into folder's children
-          renameItem(item.children);
+        // Add to the new object with the potentially updated key and item
+        updatedObj[currentKey] = currentItem;
+      });
+
+      return updatedObj;
+    };
+
+    // Additional function to rename nested children
+    const renameNestedChildren = (obj) => {
+      Object.keys(obj).forEach((key) => {
+        const item = obj[key];
+
+        // Recursively handle nested folders
+        if (item.type === "folder" && item.children) {
+          item.children = item.children.map((child) => {
+            if (child.name === oldName) {
+              return { ...child, name: newName };
+            }
+            return child;
+          });
+
+          // Continue recursion for nested folders
+          renameNestedChildren(item.children);
         }
       });
     };
 
-    renameItem(newData);
-    setData(newData);
+    const updatedData = renameItem(newData);
+    renameNestedChildren(updatedData);
+    setData(updatedData);
   };
 
   const handleDelete = (name) => {
